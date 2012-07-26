@@ -1,0 +1,7 @@
+#!/usr/bin/Rscript
+library(ascii)
+args <- commandArgs(TRUE)
+dir.create("pipenote/")
+#Pandoc(file=args[1],prefix.string="pipenote/image", pdf=TRUE,format="pdf",output="pipenote/sweaved.md")
+Sweave(file=args[1],prefix.string="pipenote/image", pdf=TRUE,format="pdf",output="pipenote/sweaved.md")
+
