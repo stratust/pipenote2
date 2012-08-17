@@ -331,7 +331,7 @@ class Pipenote::Command::Doc {
        system($cmd);
 
        # Executing Pandoc
-       $cmd = "pandoc -t latex --highlight-style tango --template $Bin/template/pandoc_template2.tex -o $current_dir/pipenote/".$pdf_filename.".tex -i " . $file;
+       $cmd = "pandoc -t latex --highlight-style tango --template $Bin/template/pandoc_template2.tex -o $current_dir/pipenote/".$pdf_filename.".tex " . $file;
        system($cmd);
 
       # Executing PDFLaTeX
