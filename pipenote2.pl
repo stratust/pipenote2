@@ -323,19 +323,27 @@ class Pipenote::Command::Doc {
        #my $string='%';
 
        #system("perl -i -ne 'print unless /^$string/' $current_dir/pipenote/sweaved.md");       
- 
-       my $cmd = "pandoc -s -t html --highlight-style tango  -o ".$pdf_filename.".html -i ". $file;
+       
+       # Create file markdown without code
+       my $cmd = "perl -0777 -pne 's/`{3}\{.*?`{3}//isg' $file > ".$pdf_filename."_nocode.md";
        system($cmd);
-        
+ 
+       $cmd = "pandoc -s -t html --highlight-style tango  -o ".$pdf_filename.".html -i ". $file;
+       system($cmd);
+       
        $cmd = "perl -i -0777 -pe 's/\\<table.*?\\<\\/table\\>//isg' $file";
        system($cmd);
 
        # Executing Pandoc
        $cmd = "pandoc -t latex --highlight-style tango --template $Bin/template/pandoc_template2.tex -o $current_dir/pipenote/".$pdf_filename.".tex " . $file;
        system($cmd);
+       $cmd = "pandoc -t latex --highlight-style tango --template $Bin/template/pandoc_template2.tex -o  $current_dir/pipenote/".$pdf_filename."_nocode.tex " . $pdf_filename."_nocode.md";
+       system($cmd);
+
 
       # Executing PDFLaTeX
        system("pdflatex -shell-escape $current_dir/pipenote/".$pdf_filename.".tex");
+       system("pdflatex -shell-escape $current_dir/pipenote/".$pdf_filename."_nocode.tex");
 
     }
 }
