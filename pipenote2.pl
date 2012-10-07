@@ -325,10 +325,10 @@ class Pipenote::Command::Doc {
        #system("perl -i -ne 'print unless /^$string/' $current_dir/pipenote/sweaved.md");       
        
        # Create file markdown without code
-       my $cmd = "perl -0777 -pne 's/`{3}\{.*?`{3}//isg' $file > ".$pdf_filename."_nocode.md";
+       my $cmd = "perl -0777 -pne 's/`{3}[r\{].*?`{3}//isg' $file > ".$pdf_filename."_nocode.md";
        system($cmd);
  
-       $cmd = "pandoc -s -t html --highlight-style tango  -o ".$pdf_filename.".html -i ". $file;
+       $cmd = "cat $file | perl -pne 's/\.pdf/\.png/g'| pandoc -s -t html --highlight-style tango  -o ".$pdf_filename.".html";
        system($cmd);
        
        $cmd = "perl -i -0777 -pe 's/\\<table.*?\\<\\/table\\>//isg' $file";

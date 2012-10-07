@@ -8,7 +8,11 @@
 %%% Preamble
 \documentclass[paper=letter, fontsize=11pt]{scrartcl}	% Article class of KOMA-script with 11pt font and a4 format
 \usepackage[left=3cm,top=2cm,right=2cm,nohead,nofoot]{geometry}
-
+\usepackage{morefloats}
+\usepackage[section] {placeins} % remove “too many unprocessed floats” errors
+%\usepackage{perpage}
+%\MakeSorted{figure}
+%\MakeSorted{table}
 \usepackage{alltt}
 \usepackage[T1]{fontenc}
 \usepackage{fourier}
@@ -122,7 +126,7 @@ $if(fancy-enums)$
 $endif$
 $if(tables)$
 \usepackage{ctable}
-\usepackage{float} % provides the H option for float placement
+%\usepackage{float} % provides the H option for float placement
 $endif$
 $if(graphics)$
 \usepackage{graphicx}
