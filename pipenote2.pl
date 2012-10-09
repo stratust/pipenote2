@@ -92,7 +92,6 @@ class Pipenote::Command::Exec {
     use File::Temp;
     use Data::Dumper;
 
-
     # Class attributes (program options - MooseX::Getopt)
     has 'input_file' => (
         isa           => 'Str',
@@ -104,21 +103,20 @@ class Pipenote::Command::Exec {
     );
 
     has 'chunks' => (
-        is            => 'rw',
-        isa           => 'Str',
-        traits        => ['Getopt'],
-        cmd_aliases     => 'o',
+        is          => 'rw',
+        isa         => 'Str',
+        traits      => ['Getopt'],
+        cmd_aliases => 'o',
+
         #required      => 1,
         #default => sub{ [] },
         documentation => 'Chuncks that you want o execute',
     );
-    
-    
 
     # Description of this command in first help
     sub abstract { 'Execute your program'; }
 
-    method extract_chunks_from_file(){
+    method extract_chunks_from_file {
         my @chunks;
 
         # Define input record separator as ''
@@ -127,28 +125,52 @@ class Pipenote::Command::Exec {
         # Read entire file
         open( my $in, '<', $self->input_file );
         my $text = <$in>;
-        close( $in );
+        close($in);
+        $/="\n";
 
         # Search for markdown chunks
         while ( $text =~ m/([\`\~]{3}\{?.*?[\`\~]{3})/sg ) {
-            push @chunks, $1;
-        }
+            my $chunk = $1;
+            # Save text after match
+            my $after_match = $';
+            
+            # check if is a knitr include
+            if ( $chunk =~ m/[\`\~]{3}\{r\s+.*child=[\'\"](.+)[\'\"]/ ) {
+                my $include_file = $1;
+                # check if file exists
+                die "Cannot find child file: $include_file" unless (-e $include_file);
 
+                # Get text for include file
+                $/ = undef;
+                open( my $in, '<', $include_file );
+                my $include_text = <$in>; 
+                close( $in );
+                $/ = "\n";
+                
+                # redefine $text for include file text + rest of original text
+                $text = $include_text.$after_match;
+                
+            }
+            else{
+                push @chunks, $chunk;
+            }
+        }
+        
         return \@chunks;
     }
 
-    method parse_chunks(){
-        # %globals keep piece of code to be inserted in the beginning of each
-        # code 
-        my (@indexed_chunks, %chunk_index, %globals);
-        
+    method parse_chunks {
+           # %globals keep piece of code to be inserted in the beginning of each
+           # code
+        my ( @indexed_chunks, %chunk_index, %globals );
+
         my $chunks = $self->extract_chunks_from_file();
-        
+
         # languages;
         my @langs = qw/perl python bash/;
-        my $i=0; # counter
-        
-        foreach my $chunk ( @{ $chunks } ) {
+        my $i     = 0;                      # counter
+
+        foreach my $chunk ( @{$chunks} ) {
             if ( $chunk =~ /[\`\~]{3}\{?(.*?)[\}?\n+\r+](.*)[\`\~]{3}/sg ) {
                 my $header = $1;
                 my $code   = $2;
@@ -156,7 +178,7 @@ class Pipenote::Command::Exec {
                 my @slices = split /\s+/, $header;
                 my ( $language, $id );
 
-                foreach my $lang ( @langs ) {
+                foreach my $lang (@langs) {
                     $language = $lang if $header =~ /\.?$lang/;
                 }
 
@@ -167,7 +189,7 @@ class Pipenote::Command::Exec {
                         $globals{$language} = $code;
                     }
                     else {
-                        $chunk_index{ $id } = $i;
+                        $chunk_index{$id} = $i;
                         my %c = (
                             id       => $id,
                             idx      => $i,
@@ -182,29 +204,25 @@ class Pipenote::Command::Exec {
             }
         }
 
-        return (
-            \%chunk_index,
-            \@indexed_chunks,
-            \%globals
-        );
+        return ( \%chunk_index, \@indexed_chunks, \%globals );
     }
-   
-    method execute_chunks($chunks_ids,$index,$chunks,$globals){
+
+    method execute_chunks ($chunks_ids,$index,$chunks,$globals) {
         my @aux = split /\s+/, $chunks_ids;
 
-        foreach ( @aux ) {
-            my $idx  = $index->{ $_ };
+        foreach (@aux) {
+            my $idx  = $index->{$_};
             my $code = "#!/usr/bin/env $chunks->[$idx]->{language}\n";
 
             #if ( $include_chunks{ $chunks->[$idx]->{language} } ) {
             #    $code .= join "",
             #      @{ $include_chunks{ $chunks->[idx]->{language} } };
             #}
-            
+
 
             my $lang = $chunks->[$idx]->{language};
-            $code .= $globals->{$lang} if  $globals->{$lang}; 
-            $code .= $chunks->[ $idx ]{ code };
+            $code .= $globals->{$lang} if $globals->{$lang};
+            $code .= $chunks->[$idx]{code};
 
             # Create a temporary file to store the chunck;
             my $fh    = File::Temp->new();
@@ -218,26 +236,40 @@ class Pipenote::Command::Exec {
             #    exec $code;
             #}
             #else {
-            system( "/usr/bin/env $chunks->[$idx]->{language} $fname" );
+            system("/usr/bin/env $chunks->[$idx]->{language} $fname");
 
             #}
 
         }
     }
 
+    method check_chunks_list ($chunks_ids,$index) {
+        my @aux = split /\s+/, $chunks_ids;
+        my @err_ids;
+        
+        foreach my $chunk_id (@aux) {
+            push( @err_ids, $chunk_id ) unless (exists $index->{$chunk_id});
+        }
+
+        if ( scalar @err_ids > 0 ) {
+            die "Cannot find these chunks ids:\n" . join "\n", @err_ids;
+        }
+    }
+
     # method used to run the command
     method execute ($opt,$args) {
-        
-        my ($index, $chunks, $globals) = $self->parse_chunks();
 
-        if ($self->chunks){
-            $self->execute_chunks($self->chunks,$index,$chunks,$globals);
+        my ( $index, $chunks, $globals ) = $self->parse_chunks();
+
+        if ( $self->chunks ) {
+            $self->check_chunks_list( $self->chunks, $index );
+            $self->execute_chunks( $self->chunks, $index, $chunks, $globals );
         }
-        else{
+        else {
             say join "\n",
-                sort { $index->{ $a } <=> $index->{ $b } } keys %{ $index };
+                sort { $index->{$a} <=> $index->{$b} } keys %{$index};
         }
-    } 
+    }
 }
 
 class Pipenote::Command::Doc {
@@ -299,7 +331,7 @@ class Pipenote::Command::Doc {
        my $current_dir = getcwd;
        mkdir "$current_dir/pipenote";
        my $file = $self->input_file;
-       my $Rcmd = "Rscript -e 'library(knitr); knit(\"$file\")'";
+       my $Rcmd = "Rscript -e 'library(knitr); setwd(\"$current_dir\"); knit(\"$file\")'";
 
        system($Rcmd);
        $file =~ s/\.Rmd/\.md/;
